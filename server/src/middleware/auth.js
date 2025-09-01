@@ -2,7 +2,6 @@ const { verifyToken } = require('../config/jwtConfig');
 const User = require('../models/User');
 const { sendErrorResponse } = require('../utils/apiResponse');
 
-// Middleware to authenticate JWT tokens (with blacklist check)
 const { isTokenBlacklisted } = require('../utils/tokenBlacklist');
 const authenticate = async (req, res, next) => {
   try {
