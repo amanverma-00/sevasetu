@@ -1,11 +1,11 @@
 const express = require('express');
 const { RtmTokenBuilder, RtmRole } = require('agora-access-token');
 const auth = require('../middleware/auth');
+const Appointment = require('../models/Appointment');
 const router = express.Router();
 
-// In a real application, you'd want to store messages in a database
-// For the hackathon, we'll use an in-memory store (not suitable for production)
-const messageStore = new Map(); // channelName -> array of messages
+// In-memory message store (for demo purposes - consider Redis for production)
+const messageStore = new Map();
 
 // Generate Agora RTM (Real-Time Messaging) token
 const generateRtmToken = (userId) => {
@@ -31,38 +31,82 @@ router.get('/token', auth, (req, res) => {
     const token = generateRtmToken(userId);
     
     res.json({
+      success: true,
       token,
       userId
     });
   } catch (error) {
     console.error('Error generating messaging token:', error);
-    res.status(500).json({ error: 'Failed to generate messaging token' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to generate messaging token' 
+    });
   }
 });
 
 // GET /api/messaging/history - Get message history for a channel
-router.get('/history', auth, (req, res) => {
+router.get('/history', auth, async (req, res) => {
   try {
-    const channel = req.query.channel;
+    const { channel } = req.query;
+    
     if (!channel) {
-      return res.status(400).json({ error: 'Channel name is required' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Channel name is required' 
+      });
+    }
+    
+    // Verify user has access to this channel
+    const appointment = await Appointment.findOne({ 
+      channelName: channel,
+      $or: [{ patientId: req.user.id }, { doctorId: req.user.id }]
+    });
+    
+    if (!appointment) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Access to this chat is not authorized' 
+      });
     }
     
     const messages = messageStore.get(channel) || [];
-    res.json({ messages });
+    
+    res.json({
+      success: true,
+      messages
+    });
   } catch (error) {
     console.error('Error fetching message history:', error);
-    res.status(500).json({ error: 'Failed to fetch message history' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch message history' 
+    });
   }
 });
 
-// POST /api/messaging/store - Store a message (called by frontend after sending)
-router.post('/store', auth, (req, res) => {
+// POST /api/messaging/store - Store a message
+router.post('/store', auth, async (req, res) => {
   try {
-    const { channel, message, sender, timestamp } = req.body;
+    const { channel, message, timestamp } = req.body;
     
     if (!channel || !message) {
-      return res.status(400).json({ error: 'Channel and message are required' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Channel and message are required' 
+      });
+    }
+    
+    // Verify user has access to this channel
+    const appointment = await Appointment.findOne({ 
+      channelName: channel,
+      $or: [{ patientId: req.user.id }, { doctorId: req.user.id }]
+    });
+    
+    if (!appointment) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Access to this chat is not authorized' 
+      });
     }
     
     if (!messageStore.has(channel)) {
@@ -72,7 +116,8 @@ router.post('/store', auth, (req, res) => {
     const messages = messageStore.get(channel);
     messages.push({
       message,
-      sender: sender || req.user.name,
+      sender: req.user.name,
+      senderId: req.user._id.toString(),
       timestamp: timestamp || Date.now()
     });
     
@@ -81,10 +126,16 @@ router.post('/store', auth, (req, res) => {
       messages.splice(0, messages.length - 100);
     }
     
-    res.json({ success: true });
+    res.json({ 
+      success: true,
+      message: 'Message stored successfully'
+    });
   } catch (error) {
     console.error('Error storing message:', error);
-    res.status(500).json({ error: 'Failed to store message' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to store message' 
+    });
   }
 });
 

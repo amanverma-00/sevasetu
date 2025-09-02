@@ -22,28 +22,31 @@ const logout = asyncHandler(async (req, res) => {
 
 // Register a new user
 const register = asyncHandler(async (req, res) => {
-  const { name, phone, password, role, specialization, licenseNumber, pharmacyId } = req.body;
+  const { name, email, phone, password, role, specialization, licenseNumber, pharmacyId, village } = req.body;
 
-  // Check if user already exists
-  const existingUser = await User.findOne({ phone });
+  // Check if user already exists by email or phone
+  const existingUser = await User.findOne({ $or: [ { email }, { phone } ] });
   if (existingUser) {
-    return sendConflictResponse(res, 'User with this phone number already exists');
+    return sendConflictResponse(res, 'User with this email or phone number already exists');
   }
 
   // Prepare user data
   const userData = {
     name,
+    email,
     phone,
     password,
     role: role.toLowerCase()
   };
 
   // Add role-specific fields
+  if (role.toLowerCase() === 'patient') {
+    userData.village = village;
+  }
   if (role.toLowerCase() === 'doctor') {
     userData.specialization = specialization;
     userData.licenseNumber = licenseNumber;
   }
-
   if (role.toLowerCase() === 'pharmacist') {
     // Verify pharmacy exists
     const pharmacy = await Pharmacy.findById(pharmacyId);

@@ -8,6 +8,14 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxLength: [100, 'Name cannot exceed 100 characters']
   },
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address']
+  },
   phone: {
     type: String,
     required: [true, 'Phone number is required'],
@@ -19,7 +27,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password is required'],
     minLength: [6, 'Password must be at least 6 characters long'],
-    select: false // Don't include password in queries by default
+    select: false
   },
   role: {
     type: String,
@@ -30,7 +38,12 @@ const userSchema = new mongoose.Schema({
     },
     lowercase: true
   },
-  // Additional fields for different roles
+  village: {
+    type: String,
+    required: function() { return this.role === 'patient'; },
+    trim: true,
+    maxLength: [100, 'Village name cannot exceed 100 characters']
+  },
   specialization: {
     type: String,
     required: function() { return this.role === 'doctor'; },

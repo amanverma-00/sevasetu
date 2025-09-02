@@ -26,23 +26,35 @@ const validateRegistration = [
     .withMessage('Name must be between 2 and 100 characters')
     .matches(/^[a-zA-Z\s]+$/)
     .withMessage('Name can only contain letters and spaces'),
-    
+
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Please provide a valid email address'),
+
   body('phone')
     .trim()
     .isMobilePhone('any', { strictMode: false })
     .withMessage('Please provide a valid phone number')
     .isLength({ min: 10, max: 15 })
     .withMessage('Phone number must be between 10 and 15 characters'),
-    
+
   body('password')
     .isLength({ min: 6, max: 128 })
     .withMessage('Password must be between 6 and 128 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number'),
-    
+
   body('role')
-    .isIn(['patient', 'doctor', 'pharmacist'])
-    .withMessage('Role must be either patient, doctor, or pharmacist'),
+    .trim()
+    .isIn(['patient', 'doctor', 'pharmacist']),
+
+  body('village')
+    .if(body('role').equals('patient'))
+    .notEmpty()
+    .withMessage('Village is required for patients')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Village name must be between 2 and 100 characters'),
     
   // Conditional validations for doctors
   body('specialization')

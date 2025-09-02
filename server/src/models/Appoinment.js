@@ -26,9 +26,18 @@ const appointmentSchema = new mongoose.Schema({
     unique: true
   },
   symptoms: String,
-  notes: String
+  notes: String,
+  duration: {
+    type: Number,
+    default: 30 // minutes
+  }
 }, {
   timestamps: true
 });
+
+// Index for efficient querying
+appointmentSchema.index({ patientId: 1, scheduledTime: 1 });
+appointmentSchema.index({ doctorId: 1, scheduledTime: 1 });
+appointmentSchema.index({ status: 1 });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
