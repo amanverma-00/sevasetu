@@ -1,3 +1,62 @@
+// Enhanced sample data generator
+router.post('/generate-sample-data', auth, async (req, res) => {
+  try {
+    // Sample health records
+    const sampleRecords = [
+      {
+        patientId: req.user.id, // Use current user's ID
+        doctorName: "Dr. Rajesh Kumar",
+        date: new Date(Date.now() - 30*24*60*60*1000),
+        diagnosis: "Seasonal Influenza",
+        prescription: "Paracetamol 500mg - 1 tablet three times daily for 5 days\nAdequate rest and fluid intake"
+      },
+      {
+        patientId: req.user.id,
+        doctorName: "Dr. Priya Singh",
+        date: new Date(Date.now() - 90*24*60*60*1000),
+        diagnosis: "Hypertension",
+        prescription: "Amlodipine 5mg - 1 tablet daily\nRegular monitoring of BP\nLow salt diet"
+      }
+    ];
+    await HealthRecord.deleteMany({ patientId: req.user.id });
+    const records = await HealthRecord.insertMany(sampleRecords);
+    successResponse(res, { records }, 'Sample data generated successfully');
+  } catch (error) {
+    errorResponse(res, 'Failed to generate sample data');
+  }
+});
+const { successResponse, errorResponse } = require('../utils/apiResponse');
+const HealthRecord = require('../models/HealthRecord');
+
+// GET /api/records - Paginated health records for authenticated user
+router.get('/', auth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    let records = [];
+    let total = 0;
+    try {
+      records = await HealthRecord.find({ patientId: req.user.id })
+        .skip(skip)
+        .limit(limit)
+        .sort({ date: -1 });
+      total = await HealthRecord.countDocuments({ patientId: req.user.id });
+    } catch (dbError) {
+      return errorResponse(res, 'Database error while fetching records');
+    }
+    successResponse(res, {
+      records,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total
+      }
+    }, 'Records retrieved successfully');
+  } catch (error) {
+    errorResponse(res, 'Failed to fetch records');
+  }
+});
 // routes/records.js - Enhanced version
 const express = require('express');
 const auth = require('../middleware/auth');

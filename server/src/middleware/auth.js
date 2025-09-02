@@ -64,7 +64,6 @@ const authorizeOwnerOrRole = (...authorizedRoles) => {
     if (!isOwner && !hasAuthorizedRole) {
       return sendErrorResponse(res, 'Access denied. Insufficient permissions.', 403);
     }
-
     next();
   };
 };
