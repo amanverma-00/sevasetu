@@ -1,121 +1,76 @@
+// models/User.js - Enhanced version
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Name is required'],
-    trim: true,
-    maxLength: [100, 'Name cannot exceed 100 characters']
-  },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address']
+    required: true,
+    trim: true
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required'],
+    required: true,
     unique: true,
-    trim: true,
-    match: [/^\+?[\d\s-()]+$/, 'Please provide a valid phone number']
+    trim: true
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
-    minLength: [6, 'Password must be at least 6 characters long'],
-    select: false
+    required: true,
+    minlength: 6
   },
   role: {
     type: String,
-    required: [true, 'Role is required'],
-    enum: {
-      values: ['patient', 'doctor', 'pharmacist'],
-      message: 'Role must be either patient, doctor, or pharmacist'
-    },
-    lowercase: true
+    required: true,
+    enum: ['patient', 'doctor', 'pharmacist', 'admin'],
+    default: 'patient'
   },
-  village: {
+  // Common fields
+  dateOfBirth: Date,
+  gender: {
     type: String,
-    required: function() { return this.role === 'patient'; },
-    trim: true,
-    maxLength: [100, 'Village name cannot exceed 100 characters']
+    enum: ['male', 'female', 'other']
   },
-  specialization: {
-    type: String,
-    required: function() { return this.role === 'doctor'; },
-    trim: true
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    pincode: String
   },
-  licenseNumber: {
-    type: String,
-    required: function() { return this.role === 'doctor'; },
-    trim: true
-  },
-  pharmacyId: {
+  // Role-specific reference
+  doctorProfile: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Pharmacy',
-    required: function() { return this.role === 'pharmacist'; }
+    ref: 'Doctor'
   },
-  isActive: {
+  patientProfile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Patient'
+  },
+  isVerified: {
     type: Boolean,
-    default: true
+    default: false
   },
-  lastLogin: {
-    type: Date
+  language: {
+    type: String,
+    default: 'en' // For multilingual support
   }
 }, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  timestamps: true
 });
 
-// Index for faster queries
 userSchema.index({ phone: 1 });
 userSchema.index({ role: 1 });
-
+userSchema.index({ 'location.coordinates': '2dsphere' });
 // Hash password before saving
 userSchema.pre('save', async function(next) {
-  // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) return next();
-
-  try {
-    // Hash password with cost of 12
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
 });
 
-// Instance method to check password
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-// Virtual for user's full profile (without password)
-userSchema.virtual('profile').get(function() {
-  return {
-    _id: this._id,
-    name: this.name,
-    phone: this.phone,
-    role: this.role,
-    specialization: this.specialization,
-    licenseNumber: this.licenseNumber,
-    pharmacyId: this.pharmacyId,
-    isActive: this.isActive,
-    lastLogin: this.lastLogin,
-    createdAt: this.createdAt,
-    updatedAt: this.updatedAt
-  };
-});
-
-// Static method to find user by phone with password
-userSchema.statics.findByPhoneWithPassword = function(phone) {
-  return this.findOne({ phone }).select('+password');
+// Method to check password
+userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
+  return await bcrypt.compare(candidatePassword, userPassword);
 };
 
 module.exports = mongoose.model('User', userSchema);
