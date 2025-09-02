@@ -13,6 +13,8 @@ const symptomRoutes = require('./routes/symptoms');
 const videoRoutes = require('./routes/video');
 const messagingRoutes = require('./routes/messaging');
 const appointmentRoutes = require('./routes/appointments');
+const demoDataRoutes = require('./routes/demoData');
+const mockRoutes = require('./routes/mockEndpoints');
 
 const app = express();
 
@@ -26,10 +28,12 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-app.use(cors({
+const corsOptions = {
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -49,6 +53,8 @@ app.use('/api/symptoms', symptomRoutes);
 app.use('/api/video', videoRoutes);
 app.use('/api/messaging', messagingRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/demo', demoDataRoutes);
+app.use('/api/mock', mockRoutes);
 
 app.use('*', (req, res) => {
   res.status(404).json({
